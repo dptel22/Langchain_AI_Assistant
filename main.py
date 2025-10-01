@@ -73,13 +73,15 @@ with page:
         """
     )
 
-    chatbot = gr.Chatbot(type='messages')
+    chatbot = gr.Chatbot(type='messages',
+                         avatar_images = [None, 'Neil-deGrasse-Tyson-2018.jpg'],
+                         show_label=False)
 
-    msg = gr.Textbox()
+    msg = gr.Textbox(show_label=False, placeholder="Ask Neil deGrasse Tyson anything")
 
     msg.submit(chat, [msg, chatbot], [msg, chatbot])
 
-    clear = gr.Button("Clear Chat")
+    clear = gr.Button("Clear Chat", variant='Secondary')
     clear.click(lambda: ([], ""), None, [chatbot, msg])
 
 page.launch(share=True)
