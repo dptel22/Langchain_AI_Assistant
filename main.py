@@ -1,7 +1,11 @@
 from dotenv import load_dotenv
 import os
-from langchain_google_genai import ChatGoogleGenerativeAI
+import gradio as gr
 
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 load_dotenv()
 
@@ -23,23 +27,59 @@ and always aiming to make people say, "Wow, I never thought of it that way befor
 Keep responses **short, concise, and impactful**—no rambling, just sharp clarity with personality.
 """
 
-
-
 llm = ChatGoogleGenerativeAI(
-    model= "gemini-2.5-flash",
-    google_api_key= gemini_key,
-    temperature = 0.5
+    model="gemini-2.0-flash",
+    google_api_key=gemini_key,
+    temperature=0.5
 )
 
+prompt = ChatPromptTemplate.from_messages([
+    ("system", system_prompt),
+    MessagesPlaceholder(variable_name="history"),
+    ("user", "{input}")
+])
 
-print("Hi, I am Neil deGrasse Tyson, How can i help you?")
-history = []
-while True:
-    user_input = input("You:")
-    if user_input == "exit":
-        break
+chain = prompt | llm | StrOutputParser()
 
-    history.append({"role": "user", "content": user_input})
-    response = llm.invoke([{"role": "system", "content": system_prompt}] + history)
-    print(f"Neil: {response.content}")
-    history.append({"role": "assistant", "content": response.content})
+print("Hi, I am Neil deGrasse Tyson, How can I help you?")
+
+
+def chat(user_input, hist):
+    langchain_history = []
+    for item in hist:
+        if item['role'] == 'user':
+            langchain_history.append(HumanMessage(content=item['content']))
+        elif item['role'] == 'assistant':
+            langchain_history.append(AIMessage(content=item['content']))
+
+    response = chain.invoke({"input": user_input, "history": langchain_history})
+
+    return "", hist + [{'role': "user", 'content': user_input},
+                       {'role': "assistant", 'content': response}]
+
+
+page = gr.Blocks(
+    title="Chat with Neil deGrasse Tyson",
+    theme=gr.themes.Soft()
+)
+
+with page:
+    gr.Markdown(
+        """
+        # Chat with Neil deGrasse Tyson
+        Step into a conversation where science meets curiosity, sprinkled with wit and wonder. I'm here to explain 
+        anything—from black holes to buttered toast—in the clearest, sharpest, and most thought-provoking way possible.
+        Ask away, and let's make you say: "Wow, I never thought of it that way before."
+        """
+    )
+
+    chatbot = gr.Chatbot(type='messages')
+
+    msg = gr.Textbox()
+
+    msg.submit(chat, [msg, chatbot], [msg, chatbot])
+
+    clear = gr.Button("Clear Chat")
+    clear.click(lambda: ([], ""), None, [chatbot, msg])
+
+page.launch(share=True)
